@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ecuador Interactivo 🇪🇨</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#07131c;color:#eef7fa;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{height:76px;padding:15px 22px;background:#0b1b26;border-bottom:1px solid #29404d;display:flex;justify-content:space-between;align-items:center}
+h1{margin:0;font-size:25px} header small{color:#91a8b5}
+.app{display:grid;grid-template-columns:245px minmax(420px,1fr) 360px;min-height:calc(100vh - 76px)}
+aside,.details{background:#0b1b26;padding:15px;border-right:1px solid #29404d}
+.details{border-left:1px solid #29404d;border-right:0}
+input,select{width:100%;padding:11px;border:1px solid #34515e;border-radius:10px;background:#102630;color:white;margin-bottom:10px}
+.list{height:calc(100vh - 160px);overflow:auto}
+.prov{padding:9px;border-radius:8px;color:#b7c9d1;cursor:pointer;margin:2px 0}
+.prov:hover,.prov.active{background:#1e6370;color:#fff}
+.mapbox{position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;background:radial-gradient(circle,#173b4b,#07131c 72%)}
+svg{width:96%;height:calc(100vh - 105px);min-height:590px}
+.province{fill:#2c7481;stroke:#e4f2f4;stroke-width:1.2;cursor:pointer;transition:.15s}
+.province:hover{fill:#63b6ae;stroke:white;stroke-width:2}
+.province.selected{fill:#f0a548;stroke:white;stroke-width:2.5}
+.label{fill:white;font-size:10px;font-weight:700;text-anchor:middle;pointer-events:none}
+.tools{position:absolute;right:16px;top:16px;display:flex;gap:6px}
+.tools button{background:#102630;color:#fff;border:1px solid #42606c;border-radius:8px;padding:8px 12px;cursor:pointer}
+.tabs{display:flex;flex-wrap:wrap;gap:5px;margin:14px 0}
+.tab{background:#102630;color:#c9d8de;border:1px solid #34515e;border-radius:8px;padding:7px 9px;cursor:pointer}
+.tab.active{background:#256d79;color:white}
+.card{background:#102630;border:1px solid #294955;border-radius:11px;padding:12px;margin:8px 0}
+.card b{display:block;color:#72c5c7;font-size:11px;text-transform:uppercase;margin-bottom:5px}
+.card p{margin:0;line-height:1.45}
+.muted{color:#91a8b5;font-size:13px}
+.legend{position:absolute;bottom:15px;left:15px;background:#0b1b26dd;padding:8px 11px;border-radius:8px;font-size:12px}
+@media(max-width:1050px){.app{grid-template-columns:200px 1fr}.details{grid-column:1/-1;border-top:1px solid #29404d}.list{height:230px}svg{height:600px}}
+@media(max-width:700px){.app{display:block}.list{height:170px}svg{height:520px}.details{border-top:1px solid #29404d}}
+</style>
+</head>
+<body>
+<header>
+<div><h1>🇪🇨 Ecuador Interactivo</h1><small>Mapa interactivo de las 24 provincias</small></div>
+<small id="status">Mapa listo</small>
+</header>
+<div class="app">
+<aside>
+<input id="search" placeholder="🔎 Buscar provincia...">
+<select id="select"></select>
+<div class="list" id="list"></div>
+</aside>
+<main class="mapbox">
+<div class="tools"><button onclick="zoom(1)">＋</button><button onclick="zoom(-1)">−</button><button onclick="resetZoom()">↺</button></div>
+<svg id="map" viewBox="0 0 720 740" aria-label="Mapa interactivo de Ecuador"></svg>
+<div class="legend">🟠 seleccionada · 🟢 al pasar el cursor</div>
+</main>
+<section class="details" id="details"></section>
+</div>
+<script>
+const DATA={'Azuay': {'capital': 'Cuenca', 'region': 'Sierra', 'languages': 'Español; kichwa', 'ethnicities': 'Pueblos andinos y nacionalidades indígenas', 'dress': 'Vestimenta tradicional de la comunidad local', 'food': 'Gastronomía tradicional regional', 'flora': 'Bosques, páramos o vegetación característica de la región', 'fauna': 'Especies nativas de la región', 'tourism': 'Atractivos naturales, culturales y turísticos de la provincia'}, 'Bolívar': {'capital': 'Guaranda', 'region': 'Sierra', 'languages': 'Español; kichwa', 'ethnicities': 'Pueblos andinos y nacionalidades indígenas', 'dress': 'Vestimenta tradicional de la comunidad local', 'food': 'Gastronomía tradicional regional', 'flora': 'Bosques, páramos o vegetación característica de la región', 'fauna': 'Especies nativas de la región', 'tourism': 'Atractivos naturales, culturales y turísticos de la provincia'}, 'Cañar': {'capital': 'Azogues', 'region': 'Sierra', 'languages': 'Español; kichwa', 'ethnicities': 'Pueblos andinos y nacionalidades indígenas', 'dress': 'Vestimenta tradicional de la comunidad local', 'food': 'Gastronomía tradicional regional', 'flora': 'Bosques, páramos o vegetación característica de la región', 'fauna': 'Especies nativas de la región', 'tourism': 'Atractivos naturales, culturales y turísticos de la provincia'}, 'Carchi': {'capital': 'Tulcán', 'region': 'Sierra', 'languages': 'Español; kichwa', 'ethnicities': 'Pueblos andinos y nacionalidades indígenas', 'dress': 'Vestimenta tradicional de la comunidad local', 'food': 'Gastronomía tradicional regional', 'flora': 'Bosques, páramos o vegetación característica de la región', 'fauna': 'Especies nativas de la región', 'tourism': 'Atractivos naturales, culturales y turísticos de la provincia'}, 'Chimborazo': {'capital': 'Riobamba', 'region': 'Sierra', 'languages': 'Español; kichwa', 'ethnicities': 'Pueblos andinos y nacionalidades indígenas', 'dress': 'Vestimenta tradicional de la comunidad local', 'food': 'Gastronomía tradicional regional', 'flora': 'Bosques, páramos o vegetación característica de la región', 'fauna': 'Especies nativas de la región', 'tourism': 'Atractivos naturales, culturales y turísticos de la provincia'}, 'Cotopaxi': {'capital': 'Latacunga', 'region': 'Sierra', 'languages': 'Español; kichwa', 'ethnicities': 'Pueblos andinos y nacionalidades indígenas', 'dress': 'Vestimenta tradicional de la comunidad local', 'food': 'Gastronomía tradicional regional', 'flora': 'Bosques, páramos o vegetación característica de la región', 'fauna': 'Especies nativas de la región', 'tourism': 'Atractivos naturales, culturales y turísticos de la provincia'}, 'El Oro': {'capital': 'Machala', 'region': 'Costa', 'languages': 'Español', 'ethnicities': 'Montuvia; afroecuatoriana', 'dress': 'Vestimenta tradicional de la comunidad local', 'food': 'Gastronomía tradicional regional', 'flora': 'Bosques, páramos o vegetación característica de la región', 'fauna': 'Especies nativas de la región', 'tourism': 'Atractivos naturales, culturales y turísticos de la provincia'}, 'Esmeraldas': {'capital': 'Esmeraldas', 'region': 'Costa', 'languages': 'Español', 'ethnicities': 'Montuvia; afroecuatoriana', 'dress': 'Vestimenta tradicional de la comunidad local', 'food': 'Gastronomía tradicional regional', 'flora': 'Bosques, páramos o vegetación característica de la región', 'fauna': 'Especies nativas de la región', 'tourism': 'Atractivos naturales, culturales y turísticos de la provincia'}, 'Galápagos': {'capital': 'Puerto Baquerizo Moreno', 'region': 'Insular', 'languages': 'Español', 'ethnicities': 'Montuvia; afroecuatoriana', 'dress': 'Vestimenta tradicional de la comunidad local', 'food': 'Gastronomía tradicional regional', 'flora': 'Bosques, páramos o vegetación característica de la región', 'fauna': 'Especies nativas de la región', 'tourism': 'Atractivos naturales, culturales y turísticos de la provincia'}, 'Guayas': {'capital': 'Guayaquil', 'region': 'Costa', 'languages': 'Español', 'ethnicities': 'Montuvia; afroecuatoriana', 'dress': 'Vestimenta tradicional de la comunidad local', 'food': 'Gastronomía tradicional regional', 'flora': 'Bosques, páramos o vegetación característica de la región', 'fauna': 'Especies nativas de la región', 'tourism': 'Atractivos naturales, culturales y turísticos de la provincia'}, 'Imbabura': {'capital': 'Ibarra', 'region': 'Sierra', 'languages': 'Español; kichwa', 'ethnicities': 'Pueblos andinos y nacionalidades indígenas', 'dress': 'Vestimenta tradicional de la comunidad local', 'food': 'Gastronomía tradicional regional', 'flora': 'Bosques, páramos o vegetación característica de la región', 'fauna': 'Especies nativas de la región', 'tourism': 'Atractivos naturales, culturales y turísticos de la provincia'}, 'Loja': {'capital': 'Loja', 'region': 'Sierra', 'languages': 'Español; kichwa', 'ethnicities': 'Pueblos andinos y nacionalidades indígenas', 'dress': 'Vestimenta tradicional de la comunidad local', 'food': 'Gastronomía tradicional regional', 'flora': 'Bosques, páramos o vegetación característica de la región', 'fauna': 'Especies nativas de la región', 'tourism': 'Atractivos naturales, culturales y turísticos de la provincia'}, 'Los Ríos': {'capital': 'Babahoyo', 'region': 'Costa', 'languages': 'Español', 'ethnicities': 'Montuvia; afroecuatoriana', 'dress': 'Vestimenta tradicional de la comunidad local', 'food': 'Gastronomía tradicional regional', 'flora': 'Bosques, páramos o vegetación característica de la región', 'fauna': 'Especies nativas de la región', 'tourism': 'Atractivos naturales, culturales y turísticos de la provincia'}, 'Manabí': {'capital': 'Portoviejo', 'region': 'Costa', 'languages': 'Español', 'ethnicities': 'Montuvia; afroecuatoriana', 'dress': 'Vestimenta tradicional de la comunidad local', 'food': 'Gastronomía tradicional regional', 'flora': 'Bosques, páramos o vegetación característica de la región', 'fauna': 'Especies nativas de la región', 'tourism': 'Atractivos naturales, culturales y turísticos de la provincia'}, 'Morona Santiago': {'capital': 'Macas', 'region': 'Amazonía', 'languages': 'Español; kichwa; shuar', 'ethnicities': 'Kichwa; Shuar; Achuar; Waorani', 'dress': 'Vestimenta tradicional de la comunidad local', 'food': 'Gastronomía tradicional regional', 'flora': 'Bosques, páramos o vegetación característica de la región', 'fauna': 'Especies nativas de la región', 'tourism': 'Atractivos naturales, culturales y turísticos de la provincia'}, 'Napo': {'capital': 'Tena', 'region': 'Amazonía', 'languages': 'Español; kichwa; shuar', 'ethnicities': 'Kichwa; Shuar; Achuar; Waorani', 'dress': 'Vestimenta tradicional de la comunidad local', 'food': 'Gastronomía tradicional regional', 'flora': 'Bosques, páramos o vegetación característica de la región', 'fauna': 'Especies nativas de la región', 'tourism': 'Atractivos naturales, culturales y turísticos de la provincia'}, 'Orellana': {'capital': 'Francisco de Orellana', 'region': 'Amazonía', 'languages': 'Español; kichwa; shuar', 'ethnicities': 'Kichwa; Shuar; Achuar; Waorani', 'dress': 'Vestimenta tradicional de la comunidad local', 'food': 'Gastronomía tradicional regional', 'flora': 'Bosques, páramos o vegetación característica de la región', 'fauna': 'Especies nativas de la región', 'tourism': 'Atractivos naturales, culturales y turísticos de la provincia'}, 'Pastaza': {'capital': 'Puyo', 'region': 'Amazonía', 'languages': 'Español; kichwa; shuar; achuar', 'ethnicities': 'Kichwa; Shuar; Achuar; Waorani', 'dress': 'Corona de semillas, collares y vestimenta tradicional', 'food': 'Maito; chontacuro; yuca', 'flora': 'Selva amazónica y plantas medicinales', 'fauna': 'Pumas; monos; guacamayos y ranas amazónicas', 'tourism': 'Puyo; Río Pastaza; Parque Nacional Yasuní'}, 'Pichincha': {'capital': 'Quito', 'region': 'Sierra', 'languages': 'Español; kichwa', 'ethnicities': 'Pueblos andinos y nacionalidades indígenas', 'dress': 'Vestimenta tradicional de la comunidad local', 'food': 'Gastronomía tradicional regional', 'flora': 'Bosques, páramos o vegetación característica de la región', 'fauna': 'Especies nativas de la región', 'tourism': 'Atractivos naturales, culturales y turísticos de la provincia'}, 'Santa Elena': {'capital': 'Santa Elena', 'region': 'Costa', 'languages': 'Español', 'ethnicities': 'Montuvia; afroecuatoriana', 'dress': 'Vestimenta tradicional de la comunidad local', 'food': 'Gastronomía tradicional regional', 'flora': 'Bosques, páramos o vegetación característica de la región', 'fauna': 'Especies nativas de la región', 'tourism': 'Atractivos naturales, culturales y turísticos de la provincia'}, 'Santo Domingo de los Tsáchilas': {'capital': 'Santo Domingo', 'region': 'Costa', 'languages': 'Español', 'ethnicities': 'Montuvia; afroecuatoriana', 'dress': 'Vestimenta tradicional de la comunidad local', 'food': 'Gastronomía tradicional regional', 'flora': 'Bosques, páramos o vegetación característica de la región', 'fauna': 'Especies nativas de la región', 'tourism': 'Atractivos naturales, culturales y turísticos de la provincia'}, 'Sucumbíos': {'capital': 'Nueva Loja', 'region': 'Amazonía', 'languages': 'Español; kichwa; shuar', 'ethnicities': 'Kichwa; Shuar; Achuar; Waorani', 'dress': 'Vestimenta tradicional de la comunidad local', 'food': 'Gastronomía tradicional regional', 'flora': 'Bosques, páramos o vegetación característica de la región', 'fauna': 'Especies nativas de la región', 'tourism': 'Atractivos naturales, culturales y turísticos de la provincia'}, 'Tungurahua': {'capital': 'Ambato', 'region': 'Sierra', 'languages': 'Español; kichwa', 'ethnicities': 'Pueblos andinos y nacionalidades indígenas', 'dress': 'Vestimenta tradicional de la comunidad local', 'food': 'Gastronomía tradicional regional', 'flora': 'Bosques, páramos o vegetación característica de la región', 'fauna': 'Especies nativas de la región', 'tourism': 'Atractivos naturales, culturales y turísticos de la provincia'}, 'Zamora Chinchipe': {'capital': 'Zamora', 'region': 'Amazonía', 'languages': 'Español; kichwa; shuar', 'ethnicities': 'Kichwa; Shuar; Achuar; Waorani', 'dress': 'Vestimenta tradicional de la comunidad local', 'food': 'Gastronomía tradicional regional', 'flora': 'Bosques, páramos o vegetación característica de la región', 'fauna': 'Especies nativas de la región', 'tourism': 'Atractivos naturales, culturales y turísticos de la provincia'}};
+const TILES=[('Carchi', 170, 45, 100, 58), ('Esmeraldas', 55, 120, 125, 95), ('Imbabura', 190, 115, 105, 70), ('Pichincha', 300, 115, 105, 75), ('Sucumbíos', 415, 105, 125, 80), ('Manabí', 30, 230, 145, 115), ('Santo Domingo de los Tsáchilas', 190, 205, 130, 75), ('Cotopaxi', 330, 205, 100, 70), ('Napo', 445, 200, 110, 75), ('Santa Elena', 25, 365, 95, 70), ('Los Ríos', 130, 340, 100, 85), ('Bolívar', 245, 300, 100, 75), ('Tungurahua', 355, 290, 105, 70), ('Pastaza', 465, 285, 125, 95), ('Guayas', 110, 425, 120, 85), ('Chimborazo', 245, 390, 110, 80), ('Cañar', 365, 380, 90, 70), ('Morona Santiago', 465, 400, 125, 100), ('El Oro', 90, 530, 110, 70), ('Azuay', 210, 495, 105, 80), ('Loja', 320, 490, 105, 85), ('Zamora Chinchipe', 435, 515, 130, 100), ('Orellana', 575, 190, 105, 85), ('Galápagos', 30, 635, 120, 70)];
+let selected="Pastaza",tab="info",scale=1;
+const select=document.getElementById("select"),list=document.getElementById("list"),details=document.getElementById("details"),svg=document.getElementById("map");
+Object.keys(DATA).sort((a,b)=>a.localeCompare(b,'es')).forEach(n=>{
+ let o=document.createElement('option');o.value=n;o.textContent=n;select.appendChild(o);
+ let p=document.createElement('div');p.className='prov';p.dataset.n=n;p.textContent=n;p.onclick=()=>choose(n);list.appendChild(p);
+});
+TILES.forEach(t=>{
+ const [n,x,y,w,h]=t;
+ const r=document.createElementNS('http://www.w3.org/2000/svg','rect');
+ r.setAttribute('x',x);r.setAttribute('y',y);r.setAttribute('width',w);r.setAttribute('height',h);
+ r.setAttribute('rx',n==='Galápagos'?16:7);r.classList.add('province');r.dataset.n=n;r.onclick=()=>choose(n);
+ r.onmouseenter=()=>document.getElementById('status').textContent=n;
+ r.onmouseleave=()=>document.getElementById('status').textContent='Mapa listo';
+ svg.appendChild(r);
+ const text=document.createElementNS('http://www.w3.org/2000/svg','text');
+ text.setAttribute('x',x+w/2);text.setAttribute('y',y+h/2+3);text.classList.add('label');text.textContent=n;svg.appendChild(text);
+});
+
+function card(title,value){return `<div class="card"><b>${title}</b><p>${value}</p></div>`}
+function render(){
+ const d=DATA[selected];
+ details.innerHTML=`<h2>${selected}</h2><div class="muted">${d.capital} · ${d.region}</div>
+ <div class="tabs">
+ ${[['info','Información'],['culture','Cultura'],['food','Gastronomía'],['nature','Flora y fauna'],['tourism','Turismo']]
+ .map(x=>`<button class="tab ${tab===x[0]?'active':''}" data-tab="${x[0]}">${x[1]}</button>`).join('')}
+ </div>`;
+ let html='';
+ if(tab==='info') html=card('Capital',d.capital)+card('Región natural',d.region)+card('Idiomas',d.languages);
+ if(tab==='culture') html=card('Pueblos y nacionalidades',d.ethnicities)+card('Vestimenta tradicional',d.dress);
+ if(tab==='food') html=card('Gastronomía',d.food);
+ if(tab==='nature') html=card('Flora',d.flora)+card('Fauna',d.fauna);
+ if(tab==='tourism') html=card('Atractivos turísticos',d.tourism);
+ details.innerHTML+=html;
+ details.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render()});
+ document.querySelectorAll('.province').forEach(x=>x.classList.toggle('selected',x.dataset.n===selected));
+ document.querySelectorAll('.prov').forEach(x=>x.classList.toggle('active',x.dataset.n===selected));
+}
+function choose(n){selected=n; tab='info'; select.value=n; render();}
+
+select.onchange=()=>choose(select.value);
+document.getElementById('search').oninput=e=>{let q=e.target.value.toLowerCase();document.querySelectorAll('.prov').forEach(p=>p.style.display=p.dataset.n.toLowerCase().includes(q)?'block':'none')};
+function zoom(dir){scale=Math.max(.8,Math.min(1.8,scale+dir*.15));svg.style.transform=`scale(${scale})`}
+function resetZoom(){scale=1;svg.style.transform='scale(1)'}
+select.value=selected;render();
+</script>
+</body>
+</html>
